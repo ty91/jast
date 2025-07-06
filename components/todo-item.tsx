@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 import { useTodoStore } from '@/stores/todo.store'
-import { Todo } from '@/types/todo'
+import { Todo, TodoStatus } from '@/types/todo'
 
 interface TodoItemProps {
   todo: Todo
@@ -13,7 +13,7 @@ interface TodoItemProps {
 export const TodoItem: React.FC<TodoItemProps> = ({ todo, isChild = false, onAddChild }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(todo.title)
-  const { updateTodo, deleteTodo } = useTodoStore()
+  const { updateTodo, updateTodoStatus, deleteTodo } = useTodoStore()
 
   const handleSave = async () => {
     if (editText.trim()) {
@@ -33,8 +33,19 @@ export const TodoItem: React.FC<TodoItemProps> = ({ todo, isChild = false, onAdd
     ])
   }
 
+  const toggleStatus = async () => {
+    const newStatus = todo.status === TodoStatus.COMPLETED ? TodoStatus.PENDING : TodoStatus.COMPLETED
+    await updateTodoStatus(todo.id, newStatus)
+  }
+
   return (
     <View style={[styles.container, isChild && styles.childContainer]}>
+      <TouchableOpacity onPress={toggleStatus} style={styles.checkbox}>
+        <View style={[styles.checkboxInner, todo.status === TodoStatus.COMPLETED && styles.checkboxChecked]}>
+          {todo.status === TodoStatus.COMPLETED && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+      </TouchableOpacity>
+
       {isEditing ? (
         <TextInput
           style={styles.input}
@@ -46,7 +57,9 @@ export const TodoItem: React.FC<TodoItemProps> = ({ todo, isChild = false, onAdd
         />
       ) : (
         <TouchableOpacity style={styles.content} onPress={() => setIsEditing(true)} activeOpacity={0.7}>
-          <Text style={styles.title}>{todo.title}</Text>
+          <Text style={[styles.title, todo.status === TodoStatus.COMPLETED && styles.titleCompleted]}>
+            {todo.title}
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -74,8 +87,29 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   childContainer: {
-    paddingLeft: 40,
+    paddingLeft: 56,
     backgroundColor: '#fafafa',
+  },
+  checkbox: {
+    marginRight: 12,
+  },
+  checkboxInner: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -83,6 +117,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     color: '#333',
+  },
+  titleCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#999',
   },
   input: {
     flex: 1,

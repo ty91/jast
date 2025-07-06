@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 import { TodoService } from '@/libs/todo.service'
-import { Todo, TodoWithChildren } from '@/types/todo'
+import { Todo, TodoStatus, TodoWithChildren } from '@/types/todo'
 
 interface TodoStore {
   todos: Todo[]
@@ -12,6 +12,7 @@ interface TodoStore {
   loadTodos: () => Promise<void>
   addTodo: (title: string, parentId?: number) => Promise<void>
   updateTodo: (id: number, title: string) => Promise<void>
+  updateTodoStatus: (id: number, status: TodoStatus) => Promise<void>
   deleteTodo: (id: number) => Promise<void>
   getTodosWithHierarchy: () => TodoWithChildren[]
 }
@@ -53,6 +54,15 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       await get().loadTodos()
     } catch (error) {
       console.error('Failed to update todo:', error)
+    }
+  },
+
+  updateTodoStatus: async (id: number, status: TodoStatus) => {
+    try {
+      await TodoService.updateTodoStatus(id, status)
+      await get().loadTodos()
+    } catch (error) {
+      console.error('Failed to update todo status:', error)
     }
   },
 

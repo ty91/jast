@@ -1,7 +1,13 @@
+export enum TodoStatus {
+  PENDING = 0,
+  COMPLETED = 1,
+}
+
 export interface Todo {
   id: number
   parentId: number | null
   title: string
+  status: TodoStatus
   createdAt: string
   updatedAt: string
   isDeleted: boolean

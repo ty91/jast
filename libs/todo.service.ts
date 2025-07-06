@@ -1,4 +1,4 @@
-import { Todo } from '@/types/todo'
+import { Todo, TodoStatus } from '@/types/todo'
 
 import { db } from './database'
 
@@ -15,13 +15,14 @@ export class TodoService {
       WHERE created_at >= ? AND created_at <= ? AND is_deleted = 0
       ORDER BY id ASC
     `,
-      [startOfDay.toISOString(), endOfDay.toISOString()]
+      [startOfDay.toISOString(), endOfDay.toISOString()],
     )
 
     return rows.map(row => ({
       id: row.id,
       parentId: row.parent_id,
       title: row.title,
+      status: row.status ?? TodoStatus.PENDING,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isDeleted: row.is_deleted === 1,
@@ -32,14 +33,15 @@ export class TodoService {
     const now = new Date().toISOString()
 
     const result = await db.runAsync(
-      'INSERT INTO todos (parent_id, title, created_at, updated_at) VALUES (?, ?, ?, ?)',
-      [parentId || null, title, now, now]
+      'INSERT INTO todos (parent_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [parentId || null, title, TodoStatus.PENDING, now, now],
     )
 
     return {
       id: result.lastInsertRowId,
       parentId: parentId || null,
       title,
+      status: TodoStatus.PENDING,
       createdAt: now,
       updatedAt: now,
       isDeleted: false,
@@ -49,6 +51,11 @@ export class TodoService {
   static async updateTodo(id: number, title: string): Promise<void> {
     const now = new Date().toISOString()
     await db.runAsync('UPDATE todos SET title = ?, updated_at = ? WHERE id = ?', [title, now, id])
+  }
+
+  static async updateTodoStatus(id: number, status: TodoStatus): Promise<void> {
+    const now = new Date().toISOString()
+    await db.runAsync('UPDATE todos SET status = ?, updated_at = ? WHERE id = ?', [status, now, id])
   }
 
   static async softDeleteTodo(id: number): Promise<void> {
@@ -68,6 +75,7 @@ export class TodoService {
       id: row.id,
       parentId: row.parent_id,
       title: row.title,
+      status: row.status ?? TodoStatus.PENDING,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isDeleted: row.is_deleted === 1,
