@@ -47,7 +47,7 @@ export class TodoService {
       [parentId || null, title, TodoStatus.PENDING, nextPosition, targetDateInt, now, now],
     )
 
-    return {
+    const newTodo = {
       id: result.lastInsertRowId,
       parentId: parentId || null,
       title,
@@ -58,6 +58,11 @@ export class TodoService {
       updatedAt: now,
       isDeleted: false,
     }
+
+    // Update daily stats
+    await this.updateDailyStats(targetDate)
+
+    return newTodo
   }
 
   static async updateTodo(id: number, title: string): Promise<void> {
@@ -67,7 +72,15 @@ export class TodoService {
 
   static async updateTodoStatus(id: number, status: TodoStatus): Promise<void> {
     const now = new Date().toISOString()
+
+    // Get the todo to find its target date
+    const todo = await this.getTodoById(id)
+    if (!todo) return
+
     await db.runAsync('UPDATE todos SET status = ?, updated_at = ? WHERE id = ?', [status, now, id])
+
+    // Update daily stats
+    await this.updateDailyStats(todo.targetDate)
   }
 
   static async softDeleteTodo(id: number): Promise<void> {
@@ -85,6 +98,9 @@ export class TodoService {
 
     // Mark as deleted
     await db.runAsync('UPDATE todos SET is_deleted = 1, updated_at = ? WHERE id = ?', [now, id])
+
+    // Update daily stats for the deleted todo's date
+    await this.updateDailyStats(todo.targetDate)
 
     if (children.length > 0) {
       // Move children to parent's position
@@ -169,6 +185,66 @@ export class TodoService {
   static async updateTodoDate(id: number, targetDate: Date): Promise<void> {
     const now = new Date().toISOString()
     const targetDateInt = dateToInt(targetDate)
+
+    // Get the old date to update stats
+    const todo = await this.getTodoById(id)
+    if (!todo) return
+
+    const oldDate = todo.targetDate
+
     await db.runAsync('UPDATE todos SET target_date = ?, updated_at = ? WHERE id = ?', [targetDateInt, now, id])
+
+    // Update stats for both old and new dates
+    await this.updateDailyStats(oldDate)
+    await this.updateDailyStats(targetDate)
+  }
+
+  // Daily stats methods
+  static async updateDailyStats(date: Date): Promise<void> {
+    const dateInt = dateToInt(date)
+
+    // Calculate stats for the given date
+    const stats = await db.getFirstAsync<{ total: number; completed: number }>(
+      `SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as completed
+      FROM todos 
+      WHERE target_date = ? AND is_deleted = 0`,
+      [dateInt],
+    )
+
+    if (!stats || stats.total === 0) {
+      // Remove the stats entry if no todos exist for this date
+      await db.runAsync('DELETE FROM daily_stats WHERE date = ?', [dateInt])
+    } else {
+      // Upsert the stats
+      await db.runAsync(
+        `INSERT INTO daily_stats (date, total_count, completed_count) 
+         VALUES (?, ?, ?)
+         ON CONFLICT(date) DO UPDATE SET 
+           total_count = excluded.total_count,
+           completed_count = excluded.completed_count`,
+        [dateInt, stats.total, stats.completed],
+      )
+    }
+  }
+
+  static async getYearlyStats(): Promise<{ date: number; total: number; completed: number }[]> {
+    const today = new Date()
+    const oneYearAgo = new Date(today)
+    oneYearAgo.setFullYear(today.getFullYear() - 1)
+
+    const startDate = dateToInt(oneYearAgo)
+    const endDate = dateToInt(today)
+
+    const rows = await db.getAllAsync<any>(
+      `SELECT date, total_count as total, completed_count as completed
+       FROM daily_stats 
+       WHERE date >= ? AND date <= ?
+       ORDER BY date ASC`,
+      [startDate, endDate],
+    )
+
+    return rows
   }
 }

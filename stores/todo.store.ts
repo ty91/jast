@@ -7,9 +7,11 @@ interface TodoStore {
   todos: Todo[]
   selectedDate: Date
   isLoading: boolean
+  yearlyStats: { date: number; total: number; completed: number }[]
 
   setSelectedDate: (date: Date) => void
   loadTodos: () => Promise<void>
+  loadYearlyStats: () => Promise<void>
   addTodo: (title: string, parentId?: number) => Promise<void>
   updateTodo: (id: number, title: string) => Promise<void>
   updateTodoStatus: (id: number, status: TodoStatus) => Promise<void>
@@ -22,6 +24,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   todos: [],
   selectedDate: new Date(),
   isLoading: false,
+  yearlyStats: [],
 
   setSelectedDate: (date: Date) => {
     set({ selectedDate: date })
@@ -40,10 +43,20 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     }
   },
 
+  loadYearlyStats: async () => {
+    try {
+      const stats = await TodoService.getYearlyStats()
+      set({ yearlyStats: stats })
+    } catch (error) {
+      console.error('Failed to load yearly stats:', error)
+    }
+  },
+
   addTodo: async (title: string, parentId?: number) => {
     try {
       await TodoService.createTodo(title, get().selectedDate, parentId)
       await get().loadTodos()
+      await get().loadYearlyStats()
     } catch (error) {
       console.error('Failed to add todo:', error)
     }
@@ -62,6 +75,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     try {
       await TodoService.updateTodoStatus(id, status)
       await get().loadTodos()
+      await get().loadYearlyStats()
     } catch (error) {
       console.error('Failed to update todo status:', error)
     }
@@ -71,6 +85,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     try {
       await TodoService.softDeleteTodo(id)
       await get().loadTodos()
+      await get().loadYearlyStats()
     } catch (error) {
       console.error('Failed to delete todo:', error)
     }

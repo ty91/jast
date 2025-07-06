@@ -21,6 +21,15 @@ export const initializeDatabase = async () => {
     );
   `)
 
+  // Create daily_stats table
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS daily_stats (
+      date INTEGER PRIMARY KEY,
+      total_count INTEGER NOT NULL DEFAULT 0,
+      completed_count INTEGER NOT NULL DEFAULT 0
+    );
+  `)
+
   // Check if columns exist, if not add them (migration)
   const tableInfo = await db.getAllAsync(`PRAGMA table_info(todos);`)
   const hasStatusColumn = tableInfo.some((column: any) => column.name === 'status')
@@ -64,6 +73,22 @@ export const initializeDatabase = async () => {
       UPDATE todos 
       SET target_date = CAST(strftime('%Y%m%d', created_at) AS INTEGER)
       WHERE target_date = 0;
+    `)
+  }
+
+  // Check if daily_stats table needs initialization
+  const statsCount = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM daily_stats;`)
+  if (statsCount?.count === 0) {
+    // Initialize daily_stats with existing todos data
+    await db.execAsync(`
+      INSERT INTO daily_stats (date, total_count, completed_count)
+      SELECT 
+        target_date as date,
+        COUNT(*) as total_count,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as completed_count
+      FROM todos
+      WHERE is_deleted = 0 AND target_date > 0
+      GROUP BY target_date;
     `)
   }
 }
