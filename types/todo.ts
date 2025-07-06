@@ -8,6 +8,7 @@ export interface Todo {
   parentId: number | null
   title: string
   status: TodoStatus
+  position: number
   createdAt: string
   updatedAt: string
   isDeleted: boolean

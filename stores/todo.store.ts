@@ -15,6 +15,7 @@ interface TodoStore {
   updateTodoStatus: (id: number, status: TodoStatus) => Promise<void>
   deleteTodo: (id: number) => Promise<void>
   getTodosWithHierarchy: () => TodoWithChildren[]
+  reorderTodos: (reorderedTodos: { id: number; position: number }[]) => Promise<void>
 }
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
@@ -77,11 +78,20 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
 
   getTodosWithHierarchy: () => {
     const todos = get().todos
-    const rootTodos = todos.filter(todo => !todo.parentId)
+    const rootTodos = todos.filter(todo => !todo.parentId).sort((a, b) => a.position - b.position)
 
     return rootTodos.map(rootTodo => ({
       ...rootTodo,
-      children: todos.filter(todo => todo.parentId === rootTodo.id),
+      children: todos.filter(todo => todo.parentId === rootTodo.id).sort((a, b) => a.position - b.position),
     }))
+  },
+
+  reorderTodos: async (reorderedTodos: { id: number; position: number }[]) => {
+    try {
+      await TodoService.reorderTodos(reorderedTodos)
+      await get().loadTodos()
+    } catch (error) {
+      console.error('Failed to reorder todos:', error)
+    }
   },
 }))

@@ -12,6 +12,7 @@ export const initializeDatabase = async () => {
       parent_id INTEGER,
       title TEXT NOT NULL,
       status INTEGER DEFAULT 0,
+      position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       is_deleted INTEGER DEFAULT 0,
@@ -19,11 +20,36 @@ export const initializeDatabase = async () => {
     );
   `)
 
-  // Check if status column exists, if not add it (migration)
+  // Check if columns exist, if not add them (migration)
   const tableInfo = await db.getAllAsync(`PRAGMA table_info(todos);`)
   const hasStatusColumn = tableInfo.some((column: any) => column.name === 'status')
+  const hasPositionColumn = tableInfo.some((column: any) => column.name === 'position')
 
   if (!hasStatusColumn) {
     await db.execAsync(`ALTER TABLE todos ADD COLUMN status INTEGER DEFAULT 0;`)
+  }
+
+  if (!hasPositionColumn) {
+    await db.execAsync(`ALTER TABLE todos ADD COLUMN position INTEGER NOT NULL DEFAULT 0;`)
+
+    // Assign initial positions to existing todos
+    const todos = await db.getAllAsync(`SELECT id, parent_id FROM todos WHERE is_deleted = 0 ORDER BY id;`)
+    const todosByParent = new Map<number | null, any[]>()
+
+    // Group by parent
+    todos.forEach((todo: any) => {
+      const parentId = todo.parent_id
+      if (!todosByParent.has(parentId)) {
+        todosByParent.set(parentId, [])
+      }
+      todosByParent.get(parentId)!.push(todo)
+    })
+
+    // Assign positions
+    for (const [parentId, children] of todosByParent) {
+      for (let i = 0; i < children.length; i++) {
+        await db.runAsync(`UPDATE todos SET position = ? WHERE id = ?`, [i + 1, children[i].id])
+      }
+    }
   }
 }
