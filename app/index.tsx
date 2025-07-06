@@ -3,7 +3,7 @@ import { SafeAreaView, StyleSheet } from 'react-native'
 
 import { AchievementGraph } from '@/components/achievement-graph'
 import { DatePicker } from '@/components/date-picker'
-import { TodoListV2 } from '@/components/v2/todo-list-v2'
+import { TodoList } from '@/components/todo-list'
 import { initializeDatabase } from '@/libs/database'
 import { useTodoStore } from '@/stores/todo.store'
 
@@ -25,7 +25,7 @@ export default function Index() {
     <SafeAreaView style={styles.container}>
       <AchievementGraph stats={yearlyStats} />
       <DatePicker />
-      <TodoListV2 />
+      <TodoList />
     </SafeAreaView>
   )
 }
