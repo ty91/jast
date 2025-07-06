@@ -1,15 +1,33 @@
-import { Text, View } from "react-native";
+import React, { useEffect } from 'react'
+import { SafeAreaView, StyleSheet } from 'react-native'
+
+import { DatePicker } from '@/components/date-picker'
+import { TodoList } from '@/components/todo-list'
+import { initializeDatabase } from '@/libs/database'
+import { useTodoStore } from '@/stores/todo.store'
 
 export default function Index() {
+  const loadTodos = useTodoStore(state => state.loadTodos)
+
+  useEffect(() => {
+    const setup = async () => {
+      await initializeDatabase()
+      await loadTodos()
+    }
+    setup()
+  }, [loadTodos])
+
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
-  );
+    <SafeAreaView style={styles.container}>
+      <DatePicker />
+      <TodoList />
+    </SafeAreaView>
+  )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+})

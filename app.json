@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "jast",
+    "name": "Jast",
     "slug": "jast",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +33,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
