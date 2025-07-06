@@ -247,4 +247,35 @@ export class TodoService {
 
     return rows
   }
+
+  static async updateTodoParent(id: number, parentId: number | null): Promise<void> {
+    const now = new Date().toISOString()
+
+    // Get the todo to update
+    const todo = await this.getTodoById(id)
+    if (!todo) return
+
+    // Get the next position for the new parent level
+    const maxPositionRow = await db.getFirstAsync<any>(
+      `SELECT MAX(position) as maxPos FROM todos 
+       WHERE ${parentId ? 'parent_id = ?' : 'parent_id IS NULL'} 
+       AND is_deleted = 0 AND target_date = ?`,
+      parentId ? [parentId, dateToInt(todo.targetDate)] : [dateToInt(todo.targetDate)],
+    )
+
+    const nextPosition = (maxPositionRow?.maxPos ?? 0) + 1
+
+    // Update the todo's parent and position
+    await db.runAsync('UPDATE todos SET parent_id = ?, position = ?, updated_at = ? WHERE id = ?', [
+      parentId,
+      nextPosition,
+      now,
+      id,
+    ])
+
+    // Reorder siblings in the old parent group
+    if (todo.parentId !== parentId) {
+      await this.reorderSiblings(todo.parentId, todo.position)
+    }
+  }
 }

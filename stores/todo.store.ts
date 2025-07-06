@@ -18,6 +18,7 @@ interface TodoStore {
   deleteTodo: (id: number) => Promise<void>
   getTodosWithHierarchy: () => TodoWithChildren[]
   reorderTodos: (reorderedTodos: { id: number; position: number }[]) => Promise<void>
+  updateTodoParent: (id: number, parentId: number | null) => Promise<void>
 }
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
@@ -107,6 +108,15 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       await get().loadTodos()
     } catch (error) {
       console.error('Failed to reorder todos:', error)
+    }
+  },
+
+  updateTodoParent: async (id: number, parentId: number | null) => {
+    try {
+      await TodoService.updateTodoParent(id, parentId)
+      await get().loadTodos()
+    } catch (error) {
+      console.error('Failed to update todo parent:', error)
     }
   },
 }))
