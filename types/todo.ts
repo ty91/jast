@@ -9,6 +9,7 @@ export interface Todo {
   title: string
   status: TodoStatus
   position: number
+  targetDate: Date
   createdAt: string
   updatedAt: string
   isDeleted: boolean

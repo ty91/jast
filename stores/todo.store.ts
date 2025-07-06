@@ -31,7 +31,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   loadTodos: async () => {
     set({ isLoading: true })
     try {
-      const todos = await TodoService.getTodosByDate(get().selectedDate.toISOString())
+      const todos = await TodoService.getTodosByDate(get().selectedDate)
       set({ todos })
     } catch (error) {
       console.error('Failed to load todos:', error)
@@ -42,7 +42,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
 
   addTodo: async (title: string, parentId?: number) => {
     try {
-      await TodoService.createTodo(title, parentId)
+      await TodoService.createTodo(title, get().selectedDate, parentId)
       await get().loadTodos()
     } catch (error) {
       console.error('Failed to add todo:', error)

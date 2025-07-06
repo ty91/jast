@@ -1,21 +1,18 @@
 import { Todo, TodoStatus } from '@/types/todo'
+import { dateToInt, intToDate } from '@/utils/date'
 
 import { db } from './database'
 
 export class TodoService {
-  static async getTodosByDate(date: string): Promise<Todo[]> {
-    const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
-    const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
-
+  static async getTodosByDate(targetDate: Date): Promise<Todo[]> {
+    const targetDateInt = dateToInt(targetDate)
     const rows = await db.getAllAsync<any>(
       `
       SELECT * FROM todos 
-      WHERE created_at >= ? AND created_at <= ? AND is_deleted = 0
+      WHERE target_date = ? AND is_deleted = 0
       ORDER BY parent_id IS NULL DESC, position ASC
     `,
-      [startOfDay.toISOString(), endOfDay.toISOString()],
+      [targetDateInt],
     )
 
     return rows.map(row => ({
@@ -24,14 +21,16 @@ export class TodoService {
       title: row.title,
       status: row.status ?? TodoStatus.PENDING,
       position: row.position ?? 0,
+      targetDate: intToDate(row.target_date),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isDeleted: row.is_deleted === 1,
     }))
   }
 
-  static async createTodo(title: string, parentId?: number): Promise<Todo> {
+  static async createTodo(title: string, targetDate: Date, parentId?: number): Promise<Todo> {
     const now = new Date().toISOString()
+    const targetDateInt = dateToInt(targetDate)
 
     // Get the next position for this parent level
     const maxPositionRow = await db.getFirstAsync<any>(
@@ -44,8 +43,8 @@ export class TodoService {
     const nextPosition = (maxPositionRow?.maxPos ?? 0) + 1
 
     const result = await db.runAsync(
-      'INSERT INTO todos (parent_id, title, status, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [parentId || null, title, TodoStatus.PENDING, nextPosition, now, now],
+      'INSERT INTO todos (parent_id, title, status, position, target_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [parentId || null, title, TodoStatus.PENDING, nextPosition, targetDateInt, now, now],
     )
 
     return {
@@ -54,6 +53,7 @@ export class TodoService {
       title,
       status: TodoStatus.PENDING,
       position: nextPosition,
+      targetDate,
       createdAt: now,
       updatedAt: now,
       isDeleted: false,
@@ -159,9 +159,16 @@ export class TodoService {
       title: row.title,
       status: row.status ?? TodoStatus.PENDING,
       position: row.position ?? 0,
+      targetDate: intToDate(row.target_date),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isDeleted: row.is_deleted === 1,
     }
+  }
+
+  static async updateTodoDate(id: number, targetDate: Date): Promise<void> {
+    const now = new Date().toISOString()
+    const targetDateInt = dateToInt(targetDate)
+    await db.runAsync('UPDATE todos SET target_date = ?, updated_at = ? WHERE id = ?', [targetDateInt, now, id])
   }
 }

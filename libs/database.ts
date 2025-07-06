@@ -13,6 +13,7 @@ export const initializeDatabase = async () => {
       title TEXT NOT NULL,
       status INTEGER DEFAULT 0,
       position INTEGER NOT NULL DEFAULT 0,
+      target_date INTEGER NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       is_deleted INTEGER DEFAULT 0,
@@ -24,6 +25,7 @@ export const initializeDatabase = async () => {
   const tableInfo = await db.getAllAsync(`PRAGMA table_info(todos);`)
   const hasStatusColumn = tableInfo.some((column: any) => column.name === 'status')
   const hasPositionColumn = tableInfo.some((column: any) => column.name === 'position')
+  const hasTargetDateColumn = tableInfo.some((column: any) => column.name === 'target_date')
 
   if (!hasStatusColumn) {
     await db.execAsync(`ALTER TABLE todos ADD COLUMN status INTEGER DEFAULT 0;`)
@@ -46,10 +48,22 @@ export const initializeDatabase = async () => {
     })
 
     // Assign positions
-    for (const [parentId, children] of todosByParent) {
+    for (const [, children] of todosByParent) {
       for (let i = 0; i < children.length; i++) {
         await db.runAsync(`UPDATE todos SET position = ? WHERE id = ?`, [i + 1, children[i].id])
       }
     }
+  }
+
+  if (!hasTargetDateColumn) {
+    // Add target_date column with default value
+    await db.execAsync(`ALTER TABLE todos ADD COLUMN target_date INTEGER NOT NULL DEFAULT 0;`)
+
+    // Migrate existing todos: extract date from created_at
+    await db.execAsync(`
+      UPDATE todos 
+      SET target_date = CAST(strftime('%Y%m%d', created_at) AS INTEGER)
+      WHERE target_date = 0;
+    `)
   }
 }
